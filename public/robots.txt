@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://codediff.netlify.app/sitemap.xml
