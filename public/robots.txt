@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://codediff.netlify.app/sitemap.xml
+Sitemap: https://codedifference.netlify.app/sitemap.xml
