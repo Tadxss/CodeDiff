@@ -96,6 +96,8 @@ export default function DiffChecker() {
   const [copiedKey, setCopiedKey] = useState(null);
   const [currentHunk, setCurrentHunk] = useState(0);
   const hunkRefs = useRef({});
+  const diffScrollRef = useRef(null);
+  const [markers, setMarkers] = useState([]);
   const originalFileRef = useRef(null);
   const changedFileRef = useRef(null);
   const [fileError, setFileError] = useState(null);
@@ -119,6 +121,31 @@ export default function DiffChecker() {
   useEffect(() => {
     setCurrentHunk((prev) => Math.min(prev, Math.max(0, hunks.length - 1)));
   }, [hunks.length]);
+
+  // Compute minimap marker positions from each hunk's rendered position in the scroll container
+  useEffect(() => {
+    const computeMarkers = () => {
+      const container = diffScrollRef.current;
+      if (!container) { setMarkers([]); return; }
+      const containerRect = container.getBoundingClientRect();
+      const scrollHeight = container.scrollHeight || 1;
+      setMarkers(hunks.map((h) => {
+        const node = hunkRefs.current[h.id];
+        if (!node) return null;
+        const nodeRect = node.getBoundingClientRect();
+        const offset = nodeRect.top - containerRect.top + container.scrollTop;
+        return {
+          id: h.id,
+          topPct: Math.min(100, Math.max(0, (offset / scrollHeight) * 100)),
+          hasRemoval: h.rows.some((r) => r.leftText !== null),
+          hasAddition: h.rows.some((r) => r.rightText !== null),
+        };
+      }).filter(Boolean));
+    };
+    computeMarkers();
+    window.addEventListener('resize', computeMarkers);
+    return () => window.removeEventListener('resize', computeMarkers);
+  }, [hunks]);
 
   const stats = useMemo(() => {
     if (granularity === 'lines') {
@@ -204,7 +231,7 @@ export default function DiffChecker() {
 
       {/* ── Sticky Header ───────────────────────────────────────────────── */}
       <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <GitCompare className="w-7 h-7 text-blue-400" />
             <div className="text-left">
@@ -219,7 +246,7 @@ export default function DiffChecker() {
       </header>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-5 space-y-4">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-6 py-5 space-y-4">
 
         {/* Toolbar: granularity switcher + clear */}
         <div className="flex items-center gap-3">
@@ -302,8 +329,9 @@ export default function DiffChecker() {
               </div>
             </div>
 
-            <div className="max-h-[55vh] overflow-y-auto overflow-x-auto">
-              <div className="grid grid-cols-[2.5rem_1fr_2.5rem_1fr] min-w-[480px]">
+            <div className="flex">
+              <div ref={diffScrollRef} className="flex-1 min-w-0 max-h-[55vh] overflow-y-auto overflow-x-auto">
+                <div className="grid grid-cols-[2.5rem_1fr_2.5rem_1fr] min-w-[480px]">
                 {diffModel.map((block, bi) => {
                   if (block.type === 'context') {
                     return block.rows.map((row, ri) => (
@@ -375,6 +403,26 @@ export default function DiffChecker() {
                   );
                 })}
               </div>
+            </div>
+            {hunks.length > 0 && (
+              <div className="relative w-3 flex-shrink-0 bg-slate-900/60 border-l border-slate-700 rounded-r-lg">
+                {markers.map((m) => {
+                  const idx = hunks.findIndex((h) => h.id === m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => goToHunk(idx)}
+                      title={`Change ${idx + 1} of ${hunks.length}`}
+                      style={{ top: `${m.topPct}%` }}
+                      className="absolute left-0 right-0 h-1.5 flex hover:h-2.5 hover:opacity-100 opacity-80 transition-all cursor-pointer"
+                    >
+                      <span className={`flex-1 ${m.hasRemoval ? 'bg-red-500' : ''}`} />
+                      <span className={`flex-1 ${m.hasAddition ? 'bg-green-500' : ''}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             </div>
           </div>
         )}
@@ -555,7 +603,7 @@ export default function DiffChecker() {
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="bg-slate-950 border-t border-slate-800 mt-8">
-        <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="max-w-screen-2xl mx-auto px-6 py-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
             {/* Developer */}
