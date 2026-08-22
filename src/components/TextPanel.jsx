@@ -12,15 +12,15 @@ export default function TextPanel({
 }) {
   return (
     <div className="flex flex-col">
-      <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-inkborder flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-blue-400" />
-          <span className="font-semibold text-slate-200">{label}</span>
+          <FileText className="w-4 h-4 text-signal" />
+          <span className="font-semibold text-bone">{label}</span>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-muted hover:text-bone transition-colors"
           >
             <Upload className="w-3.5 h-3.5" /> Open file
           </button>
@@ -34,7 +34,7 @@ export default function TextPanel({
           {value && (
             <button
               onClick={onClear}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-bone transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Clear
             </button>
@@ -46,7 +46,7 @@ export default function TextPanel({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full h-[45vh] min-h-[300px] bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-xs text-slate-300 resize-y focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
+          className="w-full h-[45vh] min-h-[300px] bg-ink border border-inkborder rounded-lg p-3 font-body text-xs text-bone/80 resize-y focus:outline-none focus:border-signal/60 placeholder:text-muted/50 transition-colors"
         />
       </div>
     </div>

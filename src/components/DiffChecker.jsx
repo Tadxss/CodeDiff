@@ -6,6 +6,7 @@ import Footer from './Footer';
 import Header from './Header';
 import HowItWorks from './HowItWorks';
 import LineDiffView from './LineDiffView';
+import Reveal from './Reveal';
 import TextPanel from './TextPanel';
 import Toolbar from './Toolbar';
 import WordDiffView from './WordDiffView';
@@ -20,16 +21,18 @@ export default function DiffChecker() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-ink text-bone font-body flex flex-col">
       <Header />
 
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-6 py-5 space-y-4">
-        <Toolbar
-          granularity={diff.granularity}
-          onGranularityChange={diff.setGranularity}
-          hasDiff={diff.hasDiff}
-          onClearAll={diff.clearAll}
-        />
+        <Reveal>
+          <Toolbar
+            granularity={diff.granularity}
+            onGranularityChange={diff.setGranularity}
+            hasDiff={diff.hasDiff}
+            onClearAll={diff.clearAll}
+          />
+        </Reveal>
 
         {diff.hasDiff && diff.granularity === 'lines' && (
           <LineDiffView
@@ -60,8 +63,8 @@ export default function DiffChecker() {
           </div>
         )}
 
-        <div className="bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-700">
+        <Reveal delay={0.08} className="bg-inklight border border-inkborder rounded-lg overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-inkborder">
             <TextPanel
               label="Original text"
               value={diff.originalText}
@@ -81,10 +84,14 @@ export default function DiffChecker() {
               placeholder="Paste the changed text or code here… or use Open file above"
             />
           </div>
-        </div>
+        </Reveal>
 
-        <HowItWorks />
-        <CollabCta onContactClick={() => setShowContact(true)} />
+        <Reveal delay={0.16}>
+          <HowItWorks />
+        </Reveal>
+        <Reveal delay={0.2}>
+          <CollabCta onContactClick={() => setShowContact(true)} />
+        </Reveal>
         <BuyMeACoffee />
       </main>
 

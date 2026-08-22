@@ -3,12 +3,18 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'JetBrains Mono', monospace;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a;
+  color: rgba(237, 239, 242, 0.87);
+  background-color: #0a0c10;
+  background-image: radial-gradient(
+    900px circle at 50% -10%,
+    rgba(0, 217, 163, 0.08),
+    transparent 60%
+  );
+  background-repeat: no-repeat;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,4 +28,44 @@
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+::selection {
+  background-color: #00d9a3;
+  color: #0a0c10;
+}
+
+:focus-visible {
+  outline: 2px solid #00d9a3;
+  outline-offset: 2px;
+}
+
+/* Custom scrollbars — ink/signal theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0c10;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232830;
+  border-radius: 4px;
+  border: 2px solid #0a0c10;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00d9a3;
+}
+
+::-webkit-scrollbar-corner {
+  background: #0a0c10;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #232830 #0a0c10;
 }

@@ -9,6 +9,7 @@ import {
   Minus,
   Plus,
 } from 'lucide-react';
+import { AnimatePresence, motion as Motion } from 'motion/react';
 
 const hatchLeft = {
   backgroundImage:
@@ -20,9 +21,39 @@ const hatchRight = {
 };
 
 function copyBtnClass(key, copiedKey) {
-  return `flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-    copiedKey === key ? 'bg-green-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+  return `flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+    copiedKey === key ? 'bg-signal text-ink' : 'bg-inklight hover:border-bone/40 border border-inkborder text-bone/80'
   }`;
+}
+
+function CopyLabel({ copied, label }) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {copied ? (
+        <Motion.span
+          key="copied"
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.12 }}
+          className="flex items-center gap-1.5"
+        >
+          <Check className="w-3.5 h-3.5" /> Copied!
+        </Motion.span>
+      ) : (
+        <Motion.span
+          key="idle"
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.12 }}
+          className="flex items-center gap-1.5"
+        >
+          <Copy className="w-3.5 h-3.5" /> {label}
+        </Motion.span>
+      )}
+    </AnimatePresence>
+  );
 }
 
 export default function LineDiffView({
@@ -42,27 +73,23 @@ export default function LineDiffView({
   changedText,
 }) {
   return (
-    <div className="bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
+    <div className="bg-inklight border border-inkborder rounded-lg overflow-hidden">
+      <div className="px-5 py-3 border-b border-inkborder flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-red-400 font-semibold text-sm">
             <Minus className="w-4 h-4" /> {stats.removals} removal{stats.removals === 1 ? '' : 's'}
           </span>
-          <button
+          <Motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => onCopy('all-left', originalText)}
             className={copyBtnClass('all-left', copiedKey)}
           >
-            {copiedKey === 'all-left' ? (
-              <Check className="w-3.5 h-3.5" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-            {copiedKey === 'all-left' ? 'Copied!' : 'Copy'}
-          </button>
+            <CopyLabel copied={copiedKey === 'all-left'} label="Copy" />
+          </Motion.button>
         </div>
 
         {hunks.length > 0 && (
-          <div className="flex items-center gap-2 text-sm text-slate-300 order-last w-full justify-center sm:order-none sm:w-auto">
+          <div className="flex items-center gap-2 text-sm text-bone/80 order-last w-full justify-center sm:order-none sm:w-auto">
             <span className="font-semibold">
               Change {currentHunk + 1} of {hunks.length}
             </span>
@@ -70,7 +97,7 @@ export default function LineDiffView({
               onClick={() => onGoToHunk(currentHunk - 1)}
               disabled={currentHunk <= 0}
               title="Previous change"
-              className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md bg-inklight border border-inkborder hover:border-bone/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronUp className="w-4 h-4" />
             </button>
@@ -78,7 +105,7 @@ export default function LineDiffView({
               onClick={() => onGoToHunk(currentHunk + 1)}
               disabled={currentHunk >= hunks.length - 1}
               title="Next change"
-              className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md bg-inklight border border-inkborder hover:border-bone/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronDown className="w-4 h-4" />
             </button>
@@ -86,17 +113,13 @@ export default function LineDiffView({
         )}
 
         <div className="flex items-center gap-3">
-          <button
+          <Motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => onCopy('all-right', changedText)}
             className={copyBtnClass('all-right', copiedKey)}
           >
-            {copiedKey === 'all-right' ? (
-              <Check className="w-3.5 h-3.5" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-            {copiedKey === 'all-right' ? 'Copied!' : 'Copy'}
-          </button>
+            <CopyLabel copied={copiedKey === 'all-right'} label="Copy" />
+          </Motion.button>
           <span className="flex items-center gap-1.5 text-green-400 font-semibold text-sm">
             <Plus className="w-4 h-4" /> {stats.additions} addition
             {stats.additions === 1 ? '' : 's'}
@@ -114,16 +137,16 @@ export default function LineDiffView({
               if (block.type === 'context') {
                 return block.rows.map((row, ri) => (
                   <Fragment key={`ctx-${bi}-${ri}`}>
-                    <span className="text-right pr-2 py-0.5 text-[11px] text-slate-600 select-none">
+                    <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
                       {row.leftNum}
                     </span>
-                    <span className="px-3 py-0.5 border-r border-slate-700 font-mono text-xs text-slate-400 whitespace-pre-wrap break-words">
+                    <span className="px-3 py-0.5 border-r border-inkborder font-body text-xs text-muted whitespace-pre-wrap break-words">
                       {row.text || ' '}
                     </span>
-                    <span className="text-right pr-2 py-0.5 text-[11px] text-slate-600 select-none">
+                    <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
                       {row.rightNum}
                     </span>
-                    <span className="px-3 py-0.5 font-mono text-xs text-slate-400 whitespace-pre-wrap break-words">
+                    <span className="px-3 py-0.5 font-body text-xs text-muted whitespace-pre-wrap break-words">
                       {row.text || ' '}
                     </span>
                   </Fragment>
@@ -134,22 +157,22 @@ export default function LineDiffView({
                 <Fragment key={`hunk-${block.id}`}>
                   {block.rows.map((row, ri) => (
                     <Fragment key={`hunk-${block.id}-row-${ri}`}>
-                      <span className="text-right pr-2 py-0.5 text-[11px] text-slate-600 select-none">
+                      <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
                         {row.leftNum ?? ''}
                       </span>
                       <span
-                        className={`px-3 py-0.5 border-r border-slate-700 font-mono text-xs whitespace-pre-wrap break-words ${
+                        className={`px-3 py-0.5 border-r border-inkborder font-body text-xs whitespace-pre-wrap break-words ${
                           row.leftText !== null ? 'bg-red-500/20 text-red-300' : ''
                         }`}
                         style={row.leftText === null ? hatchLeft : undefined}
                       >
                         {row.leftText !== null ? row.leftText || ' ' : ''}
                       </span>
-                      <span className="text-right pr-2 py-0.5 text-[11px] text-slate-600 select-none">
+                      <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
                         {row.rightNum ?? ''}
                       </span>
                       <span
-                        className={`px-3 py-0.5 font-mono text-xs whitespace-pre-wrap break-words ${
+                        className={`px-3 py-0.5 font-body text-xs whitespace-pre-wrap break-words ${
                           row.rightText !== null ? 'bg-green-500/20 text-green-300' : ''
                         }`}
                         style={row.rightText === null ? hatchRight : undefined}
@@ -162,44 +185,38 @@ export default function LineDiffView({
                     ref={(el) => {
                       hunkRefs.current[block.id] = el;
                     }}
-                    className="col-span-4 flex flex-wrap items-center justify-center gap-2 py-2 px-2 bg-slate-900/70 border-y border-slate-700"
+                    className="col-span-4 flex flex-wrap items-center justify-center gap-2 py-2 px-2 bg-ink/70 border-y border-inkborder"
                   >
-                    <button
+                    <Motion.button
+                      whileTap={{ scale: 0.94 }}
                       onClick={() => onCopy(`hunk-${block.id}-removed`, block.removedText)}
                       className={copyBtnClass(`hunk-${block.id}-removed`, copiedKey)}
                     >
-                      {copiedKey === `hunk-${block.id}-removed` ? (
-                        <Check className="w-3.5 h-3.5" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                      Removed
-                    </button>
-                    <button
+                      <CopyLabel copied={copiedKey === `hunk-${block.id}-removed`} label="Removed" />
+                    </Motion.button>
+                    <Motion.button
+                      whileTap={{ scale: 0.94 }}
                       onClick={() => onAccept(block)}
                       title="Replace the original lines with the changed lines"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
                     >
                       Merge change <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    </Motion.button>
+                    <Motion.button
+                      whileTap={{ scale: 0.94 }}
                       onClick={() => onRevert(block)}
                       title="Replace the changed lines with the original lines"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-signal hover:bg-signal/90 text-ink text-xs font-semibold transition-colors"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Merge change
-                    </button>
-                    <button
+                    </Motion.button>
+                    <Motion.button
+                      whileTap={{ scale: 0.94 }}
                       onClick={() => onCopy(`hunk-${block.id}-added`, block.addedText)}
                       className={copyBtnClass(`hunk-${block.id}-added`, copiedKey)}
                     >
-                      {copiedKey === `hunk-${block.id}-added` ? (
-                        <Check className="w-3.5 h-3.5" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                      Added
-                    </button>
+                      <CopyLabel copied={copiedKey === `hunk-${block.id}-added`} label="Added" />
+                    </Motion.button>
                   </div>
                 </Fragment>
               );
@@ -207,7 +224,7 @@ export default function LineDiffView({
           </div>
         </div>
         {hunks.length > 0 && (
-          <div className="relative w-3 flex-shrink-0 bg-slate-900/60 border-l border-slate-700 rounded-r-lg">
+          <div className="relative w-3 flex-shrink-0 bg-ink/60 border-l border-inkborder rounded-r-lg">
             {markers.map((m) => {
               const idx = hunks.findIndex((h) => h.id === m.id);
               return (
