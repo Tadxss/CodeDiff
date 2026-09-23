@@ -36,18 +36,16 @@ export default function DiffChecker() {
 
         {diff.hasDiff && diff.granularity === 'lines' && (
           <LineDiffView
-            diffModel={diff.diffModel}
+            flatRows={diff.flatRows}
             hunks={diff.hunks}
             stats={diff.stats}
             currentHunk={diff.currentHunk}
             onGoToHunk={diff.goToHunk}
             markers={diff.markers}
-            diffScrollRef={diff.diffScrollRef}
-            hunkRefs={diff.hunkRefs}
+            listRef={diff.listRef}
             copiedKey={diff.copiedKey}
             onCopy={diff.copyText}
-            onAccept={diff.acceptHunk}
-            onRevert={diff.revertHunk}
+            onToggleCollapse={diff.toggleCollapse}
             originalText={diff.originalText}
             changedText={diff.changedText}
           />
@@ -63,7 +61,10 @@ export default function DiffChecker() {
           </div>
         )}
 
-        <Reveal delay={0.08} className="bg-inklight border border-inkborder rounded-lg overflow-hidden">
+        <Reveal
+          delay={0.08}
+          className="bg-inklight border border-inkborder rounded-lg overflow-hidden"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-inkborder">
             <TextPanel
               label="Original text"

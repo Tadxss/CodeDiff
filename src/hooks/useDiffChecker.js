@@ -1,27 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { diffLines, diffWords } from 'diff';
-import { buildDiffModel } from '../lib/diffModel';
+import { buildDiffModel, collapseContextBlocks, flattenForRender } from '../lib/diffModel';
 import { readTextFromFile } from '../lib/fileReader';
 
 export function useDiffChecker() {
   const [granularity, setGranularity] = useState('lines'); // 'lines' | 'words'
   const [copiedKey, setCopiedKey] = useState(null);
   const [currentHunk, setCurrentHunk] = useState(0);
-  const hunkRefs = useRef({});
-  const diffScrollRef = useRef(null);
-  const [markers, setMarkers] = useState([]);
+  const [expandedCollapseIds, setExpandedCollapseIds] = useState(() => new Set());
+  const listRef = useRef(null);
   const originalFileRef = useRef(null);
   const changedFileRef = useRef(null);
   const [fileError, setFileError] = useState(null);
   const [originalText, setOriginalText] = useState('');
   const [changedText, setChangedText] = useState('');
 
+  // Intentionally strict, matching `git diff`'s default behavior: a line that gains or
+  // loses its trailing newline (e.g. it stops/starts being the last line of the text) is
+  // treated as a real change, not ignored — verified against actual `git diff` output.
   const linesDiff = useMemo(
     () => diffLines(originalText, changedText),
     [originalText, changedText]
   );
   const diffModel = useMemo(() => buildDiffModel(linesDiff), [linesDiff]);
   const hunks = useMemo(() => diffModel.filter((b) => b.type === 'hunk'), [diffModel]);
+
+  const collapsedBlocks = useMemo(
+    () => collapseContextBlocks(diffModel, { threshold: 8, edgeLines: 3 }),
+    [diffModel]
+  );
+  const { rows: flatRows, hunkRowIndex } = useMemo(
+    () => flattenForRender(collapsedBlocks, expandedCollapseIds),
+    [collapsedBlocks, expandedCollapseIds]
+  );
 
   const wordsDiff = useMemo(
     () => (granularity === 'words' ? diffWords(originalText, changedText) : []),
@@ -33,35 +44,31 @@ export function useDiffChecker() {
   }, [hunks.length]);
 
   useEffect(() => {
-    const computeMarkers = () => {
-      const container = diffScrollRef.current;
-      if (!container) {
-        setMarkers([]);
-        return;
-      }
-      const containerRect = container.getBoundingClientRect();
-      const scrollHeight = container.scrollHeight || 1;
-      setMarkers(
-        hunks
-          .map((h) => {
-            const node = hunkRefs.current[h.id];
-            if (!node) return null;
-            const nodeRect = node.getBoundingClientRect();
-            const offset = nodeRect.top - containerRect.top + container.scrollTop;
-            return {
-              id: h.id,
-              topPct: Math.min(100, Math.max(0, (offset / scrollHeight) * 100)),
-              hasRemoval: h.rows.some((r) => r.leftText !== null),
-              hasAddition: h.rows.some((r) => r.rightText !== null),
-            };
-          })
-          .filter(Boolean)
-      );
-    };
-    computeMarkers();
-    window.addEventListener('resize', computeMarkers);
-    return () => window.removeEventListener('resize', computeMarkers);
-  }, [hunks]);
+    setExpandedCollapseIds(new Set());
+  }, [linesDiff]);
+
+  const markers = useMemo(() => {
+    const totalRows = Math.max(1, flatRows.length - 1);
+    return hunks.map((h, index) => {
+      const rowIndex = hunkRowIndex.get(h.id) ?? 0;
+      return {
+        id: h.id,
+        index,
+        topPct: Math.min(100, Math.max(0, (rowIndex / totalRows) * 100)),
+        hasRemoval: h.rows.some((r) => r.leftText !== null),
+        hasAddition: h.rows.some((r) => r.rightText !== null),
+      };
+    });
+  }, [hunks, flatRows.length, hunkRowIndex]);
+
+  const toggleCollapse = (collapseId) => {
+    setExpandedCollapseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(collapseId)) next.delete(collapseId);
+      else next.add(collapseId);
+      return next;
+    });
+  };
 
   const stats = useMemo(() => {
     if (granularity === 'lines') {
@@ -114,35 +121,14 @@ export function useDiffChecker() {
     });
   };
 
-  /** Merge a hunk's changed content into the original text (accept the change) */
-  const acceptHunk = (hunk) => {
-    const set = new Set(hunk.partIndices);
-    const newOriginal = linesDiff
-      .map((part, idx) => {
-        if (set.has(idx)) return part.added ? part.value : '';
-        return part.added ? '' : part.value;
-      })
-      .join('');
-    setOriginalText(newOriginal);
-  };
-
-  /** Merge a hunk's original content into the changed text (revert the change) */
-  const revertHunk = (hunk) => {
-    const set = new Set(hunk.partIndices);
-    const newChanged = linesDiff
-      .map((part, idx) => {
-        if (set.has(idx)) return part.removed ? part.value : '';
-        return part.removed ? '' : part.value;
-      })
-      .join('');
-    setChangedText(newChanged);
-  };
-
   const goToHunk = (index) => {
     if (hunks.length === 0) return;
     const clamped = Math.max(0, Math.min(index, hunks.length - 1));
     setCurrentHunk(clamped);
-    hunkRefs.current[hunks[clamped].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const rowIndex = hunkRowIndex.get(hunks[clamped].id);
+    if (rowIndex != null) {
+      listRef.current?.scrollToRow({ index: rowIndex, align: 'center', behavior: 'smooth' });
+    }
   };
 
   return {
@@ -153,6 +139,7 @@ export function useDiffChecker() {
     changedText,
     setChangedText,
     diffModel,
+    flatRows,
     hunks,
     wordsDiff,
     stats,
@@ -160,8 +147,9 @@ export function useDiffChecker() {
     currentHunk,
     goToHunk,
     markers,
-    diffScrollRef,
-    hunkRefs,
+    listRef,
+    expandedCollapseIds,
+    toggleCollapse,
     copiedKey,
     copyText,
     fileError,
@@ -171,7 +159,5 @@ export function useDiffChecker() {
     resetOriginal,
     resetChanged,
     clearAll,
-    acceptHunk,
-    revertHunk,
   };
 }

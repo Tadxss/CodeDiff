@@ -23,22 +23,24 @@ describe('useDiffChecker', () => {
     expect(result.current.stats).toEqual({ additions: 1, removals: 1 });
   });
 
-  it('acceptHunk merges the changed content into the original text', () => {
+  it('matches git: a line that gains a trailing newline (stops being the last line) counts as changed', () => {
+    // Verified against real `git diff`: comparing a file with no trailing newline against
+    // one where that same line now has more lines after it shows the line as removed+added,
+    // not as unchanged context — because the underlying bytes genuinely differ.
     const { result } = renderHook(() => useDiffChecker());
-    act(() => result.current.setOriginalText('one\ntwo\n'));
-    act(() => result.current.setChangedText('one\nTWO\n'));
+    act(() => result.current.setOriginalText('https://example.com/job/1'));
+    act(() => result.current.setChangedText('https://example.com/job/1\nline2\nline3'));
 
-    act(() => result.current.acceptHunk(result.current.hunks[0]));
-    expect(result.current.originalText).toBe('one\nTWO\n');
+    expect(result.current.stats).toEqual({ additions: 3, removals: 1 });
   });
 
-  it('revertHunk merges the original content into the changed text', () => {
+  it('matches git: unchanged lines stay unchanged when both sides consistently end with a newline', () => {
     const { result } = renderHook(() => useDiffChecker());
-    act(() => result.current.setOriginalText('one\ntwo\n'));
-    act(() => result.current.setChangedText('one\nTWO\n'));
+    act(() => result.current.setOriginalText('https://example.com/job/1\n'));
+    act(() => result.current.setChangedText('https://example.com/job/1\nline2\nline3\n'));
 
-    act(() => result.current.revertHunk(result.current.hunks[0]));
-    expect(result.current.changedText).toBe('one\ntwo\n');
+    expect(result.current.stats).toEqual({ additions: 2, removals: 0 });
+    expect(result.current.hunks[0].rows.map((r) => r.rightText)).toEqual(['line2', 'line3']);
   });
 
   it('clearAll resets both sides', () => {
@@ -71,6 +73,38 @@ describe('useDiffChecker', () => {
 
     act(() => result.current.goToHunk(-5));
     expect(result.current.currentHunk).toBe(0);
+  });
+
+  it('computes markers with monotonically increasing positions and sequential indices', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() =>
+      result.current.setOriginalText('one\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\ntwo\n')
+    );
+    act(() =>
+      result.current.setChangedText('ONE\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\nTWO\n')
+    );
+
+    expect(result.current.markers).toHaveLength(2);
+    expect(result.current.markers.map((m) => m.index)).toEqual([0, 1]);
+    expect(result.current.markers[0].topPct).toBeLessThan(result.current.markers[1].topPct);
+  });
+
+  it('toggleCollapse flips membership in expandedCollapseIds', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.toggleCollapse(0));
+    expect(result.current.expandedCollapseIds.has(0)).toBe(true);
+
+    act(() => result.current.toggleCollapse(0));
+    expect(result.current.expandedCollapseIds.has(0)).toBe(false);
+  });
+
+  it('resets expandedCollapseIds when the diff changes', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.toggleCollapse(0));
+    expect(result.current.expandedCollapseIds.has(0)).toBe(true);
+
+    act(() => result.current.setOriginalText('a'));
+    expect(result.current.expandedCollapseIds.has(0)).toBe(false);
   });
 
   it('copyText sets copiedKey then clears it after the timeout', async () => {
