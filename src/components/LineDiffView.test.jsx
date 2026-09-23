@@ -98,7 +98,9 @@ describe('LineDiffView', () => {
   });
 
   it('expanding a collapsed section inlines its hidden rows', () => {
-    render(<LineDiffView {...baseProps({ flatRows: buildFlatRows({ expandedIds: new Set([0]) }) })} />);
+    render(
+      <LineDiffView {...baseProps({ flatRows: buildFlatRows({ expandedIds: new Set([0]) }) })} />
+    );
     expect(screen.getAllByText('unchanged 5').length).toBeGreaterThan(0);
   });
 });

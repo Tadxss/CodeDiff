@@ -78,10 +78,14 @@ describe('useDiffChecker', () => {
   it('computes markers with monotonically increasing positions and sequential indices', () => {
     const { result } = renderHook(() => useDiffChecker());
     act(() =>
-      result.current.setOriginalText('one\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\ntwo\n')
+      result.current.setOriginalText(
+        'one\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\ntwo\n'
+      )
     );
     act(() =>
-      result.current.setChangedText('ONE\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\nTWO\n')
+      result.current.setChangedText(
+        'ONE\nkeep1\nkeep2\nkeep3\nkeep4\nkeep5\nkeep6\nkeep7\nkeep8\nTWO\n'
+      )
     );
 
     expect(result.current.markers).toHaveLength(2);
@@ -115,5 +119,64 @@ describe('useDiffChecker', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('some text');
 
     await waitFor(() => expect(result.current.copiedKey).toBeNull(), { timeout: 3000 });
+  });
+});
+
+// Scenarios manually verified against real `git diff` output (see conversation history) — kept as
+// automated regression coverage so future changes to diff options/logic can't silently break git parity.
+describe('diff scenarios (git parity)', () => {
+  it('whitespace-only differences count as changed (git is whitespace-sensitive by default)', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText('const x = 1;\n'));
+    act(() => result.current.setChangedText('const x = 1; \n'));
+
+    expect(result.current.stats).toEqual({ additions: 1, removals: 1 });
+  });
+
+  it('a pure addition only counts additions, with unrelated lines left as context', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText('function greet() {\n  console.log("hi");\n}\n'));
+    act(() =>
+      result.current.setChangedText(
+        'function greet() {\n  console.log("hi");\n  console.log("bye");\n}\n'
+      )
+    );
+
+    expect(result.current.stats).toEqual({ additions: 1, removals: 0 });
+  });
+
+  it('a pure removal only counts removals', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText('line1\nline2\nline3\n'));
+    act(() => result.current.setChangedText('line1\nline3\n'));
+
+    expect(result.current.stats).toEqual({ additions: 0, removals: 1 });
+  });
+
+  it('reordered lines show as a removal + addition, not a detected move', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText('apple\nbanana\ncherry\n'));
+    act(() => result.current.setChangedText('cherry\napple\nbanana\n'));
+
+    expect(result.current.hasDiff).toBe(true);
+    expect(result.current.stats.additions).toBeGreaterThan(0);
+    expect(result.current.stats.removals).toBeGreaterThan(0);
+  });
+
+  it('identical text on both sides produces no diff', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText('identical\ncontent\nhere\n'));
+    act(() => result.current.setChangedText('identical\ncontent\nhere\n'));
+
+    expect(result.current.hunks).toHaveLength(0);
+    expect(result.current.stats).toEqual({ additions: 0, removals: 0 });
+  });
+
+  it('empty original vs full content counts everything as additions', () => {
+    const { result } = renderHook(() => useDiffChecker());
+    act(() => result.current.setOriginalText(''));
+    act(() => result.current.setChangedText('brand new\nfile content\n'));
+
+    expect(result.current.stats).toEqual({ additions: 2, removals: 0 });
   });
 });

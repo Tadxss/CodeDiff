@@ -75,7 +75,14 @@ describe('collapseContextBlocks', () => {
   });
 
   it('leaves hunk blocks untouched', () => {
-    const hunk = { id: 0, type: 'hunk', partIndices: [0], rows: [], removedText: '', addedText: '' };
+    const hunk = {
+      id: 0,
+      type: 'hunk',
+      partIndices: [0],
+      rows: [],
+      removedText: '',
+      addedText: '',
+    };
     expect(collapseContextBlocks([hunk])).toEqual([hunk]);
   });
 
@@ -92,7 +99,11 @@ describe('collapseContextBlocks', () => {
   });
 
   it('assigns independent collapse ids to multiple long context blocks', () => {
-    const blocks = [makeContext(10), { id: 0, type: 'hunk', rows: [], partIndices: [] }, makeContext(12)];
+    const blocks = [
+      makeContext(10),
+      { id: 0, type: 'hunk', rows: [], partIndices: [] },
+      makeContext(12),
+    ];
     const result = collapseContextBlocks(blocks);
     const dividers = result.filter((b) => b.type === 'context-collapsed');
     expect(dividers.map((d) => d.id)).toEqual([0, 1]);
