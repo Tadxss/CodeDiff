@@ -90,13 +90,13 @@ function FloatingIconButton({ icon, isCopied, label, onClick }) {
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={`flex items-center justify-center w-6 h-6 rounded-md border shadow-sm transition-colors ${
+      className={`flex items-center justify-center w-5 h-5 rounded-md border shadow-sm transition-colors ${
         isCopied
           ? 'bg-signal text-ink border-signal'
           : 'bg-ink/90 border-inkborder text-bone/80 hover:border-bone/40 hover:text-bone'
       }`}
     >
-      {isCopied ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+      {isCopied ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
     </Motion.button>
   );
 }
@@ -136,7 +136,7 @@ const HunkRow = memo(function HunkRow({
           {row.leftText !== null ? row.leftText || ' ' : ''}
         </span>
         {showActions && (
-          <span className="absolute top-1 right-1 flex items-center gap-1">
+          <span className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1">
             <FloatingIconButton
               icon={Copy}
               isCopied={copiedKey === `hunk-${hunk.id}-removed`}
@@ -163,7 +163,7 @@ const HunkRow = memo(function HunkRow({
           {row.rightText !== null ? row.rightText || ' ' : ''}
         </span>
         {showActions && (
-          <span className="absolute top-1 right-1 flex items-center gap-1">
+          <span className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1">
             <FloatingIconButton
               icon={Copy}
               isCopied={copiedKey === `hunk-${hunk.id}-added`}
