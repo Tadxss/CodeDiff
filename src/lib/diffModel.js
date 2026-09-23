@@ -57,3 +57,88 @@ export function buildDiffModel(diffResult) {
   }
   return blocks;
 }
+
+/**
+ * Split long unchanged (context) blocks into edge context + a collapsible
+ * "context-collapsed" divider, so huge unchanged runs don't have to be
+ * scrolled through. Hunk blocks and short context blocks pass through as-is.
+ */
+export function collapseContextBlocks(blocks, { threshold = 8, edgeLines = 3 } = {}) {
+  let collapseId = 0;
+  const result = [];
+
+  blocks.forEach((block) => {
+    if (block.type !== 'context' || block.rows.length <= threshold) {
+      result.push(block);
+      return;
+    }
+    const { rows } = block;
+    result.push({ type: 'context', rows: rows.slice(0, edgeLines) });
+    result.push({
+      type: 'context-collapsed',
+      id: collapseId++,
+      hiddenRows: rows.slice(edgeLines, rows.length - edgeLines),
+    });
+    result.push({ type: 'context', rows: rows.slice(rows.length - edgeLines) });
+  });
+
+  return result;
+}
+
+/**
+ * Flatten collapse-aware blocks into a single array of row descriptors for
+ * virtualized rendering, plus a hunkId -> first-row-index map (used for
+ * proportional minimap positioning and scroll-to-hunk, both O(1)).
+ */
+export function flattenForRender(blocks, expandedIds) {
+  const rows = [];
+  const hunkRowIndex = new Map();
+  let hunkIndex = 0;
+
+  blocks.forEach((block, bi) => {
+    if (block.type === 'context') {
+      block.rows.forEach((row, ri) => {
+        rows.push({ kind: 'context', key: `ctx-${bi}-${ri}`, ...row });
+      });
+      return;
+    }
+
+    if (block.type === 'context-collapsed') {
+      const expanded = expandedIds.has(block.id);
+      const first = block.hiddenRows[0];
+      const last = block.hiddenRows[block.hiddenRows.length - 1];
+      rows.push({
+        kind: 'collapseDivider',
+        key: `collapse-${block.id}`,
+        collapseId: block.id,
+        hiddenCount: block.hiddenRows.length,
+        expanded,
+        leftRange: first && last ? [first.leftNum, last.leftNum] : [null, null],
+        rightRange: first && last ? [first.rightNum, last.rightNum] : [null, null],
+      });
+      if (expanded) {
+        block.hiddenRows.forEach((row, ri) => {
+          rows.push({ kind: 'context', key: `collapse-${block.id}-row-${ri}`, ...row });
+        });
+      }
+      return;
+    }
+
+    // hunk block
+    const thisHunkIndex = hunkIndex++;
+    hunkRowIndex.set(block.id, rows.length);
+    block.rows.forEach((row, ri) => {
+      rows.push({
+        kind: 'hunkRow',
+        key: `hunk-${block.id}-row-${ri}`,
+        hunkId: block.id,
+        hunkIndex: thisHunkIndex,
+        hunk: block,
+        isFirstRow: ri === 0,
+        ...row,
+      });
+    });
+  });
+
+  return { rows, hunkRowIndex };
+}

@@ -46,9 +46,7 @@ export default function Footer() {
               <Heart className="w-5 h-5 text-signal" />
               <span className="text-lg font-semibold font-heading text-bone">Made with Care</span>
             </div>
-            <p className="text-muted text-sm mb-2">
-              © {new Date().getFullYear()} Daryl John Tadeo
-            </p>
+            <p className="text-muted text-sm mb-2">© {new Date().getFullYear()} Daryl John Tadeo</p>
             <p className="text-muted text-xs flex items-center justify-center md:justify-end gap-1.5">
               <Lock className="w-3 h-3" /> Your text never leaves your device, ever
             </p>

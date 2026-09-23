@@ -1,15 +1,15 @@
-import { Fragment } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Minus,
-  Plus,
-} from 'lucide-react';
+import { memo, useCallback, useState } from 'react';
+import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, Minus, Plus } from 'lucide-react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
+import { List } from 'react-window';
+
+const ROW_GRID = 'grid grid-cols-[2.5rem_1fr_2.5rem_1fr] min-w-[480px] overflow-hidden';
+const TEXT_ROW_HEIGHT = 22;
+const DIVIDER_ROW_HEIGHT = 28;
+
+function rowHeight(index, { rows }) {
+  return rows[index].kind === 'collapseDivider' ? DIVIDER_ROW_HEIGHT : TEXT_ROW_HEIGHT;
+}
 
 const hatchLeft = {
   backgroundImage:
@@ -22,7 +22,9 @@ const hatchRight = {
 
 function copyBtnClass(key, copiedKey) {
   return `flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-    copiedKey === key ? 'bg-signal text-ink' : 'bg-inklight hover:border-bone/40 border border-inkborder text-bone/80'
+    copiedKey === key
+      ? 'bg-signal text-ink'
+      : 'bg-inklight hover:border-bone/40 border border-inkborder text-bone/80'
   }`;
 }
 
@@ -56,22 +58,195 @@ function CopyLabel({ copied, label }) {
   );
 }
 
+const ContextRow = memo(function ContextRow({ row, style }) {
+  return (
+    <div style={style} className={ROW_GRID}>
+      <div className="col-span-2 grid grid-cols-[2.5rem_1fr]">
+        <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
+          {row.leftNum}
+        </span>
+        <span className="px-3 py-0.5 border-r border-inkborder font-body text-xs text-muted whitespace-pre-wrap break-words">
+          {row.text || ' '}
+        </span>
+      </div>
+      <div className="col-span-2 grid grid-cols-[2.5rem_1fr]">
+        <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
+          {row.rightNum}
+        </span>
+        <span className="px-3 py-0.5 font-body text-xs text-muted whitespace-pre-wrap break-words">
+          {row.text || ' '}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+function FloatingIconButton({ icon, isCopied, label, onClick }) {
+  const Icon = icon;
+  return (
+    <Motion.button
+      type="button"
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`flex items-center justify-center w-5 h-5 rounded-md border shadow-sm transition-colors ${
+        isCopied
+          ? 'bg-signal text-ink border-signal'
+          : 'bg-ink/90 border-inkborder text-bone/80 hover:border-bone/40 hover:text-bone'
+      }`}
+    >
+      {isCopied ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
+    </Motion.button>
+  );
+}
+
+const HunkRow = memo(function HunkRow({
+  row,
+  style,
+  copiedKey,
+  isHunkHovered,
+  onHunkEnter,
+  onHunkLeave,
+  onCopy,
+}) {
+  const { hunk } = row;
+  const showActions = isHunkHovered && row.isFirstRow;
+  return (
+    <div
+      style={style}
+      className={ROW_GRID}
+      onMouseEnter={() => onHunkEnter(row.hunkId)}
+      onMouseLeave={() => onHunkLeave(row.hunkId)}
+    >
+      <div
+        className={`relative col-span-2 grid grid-cols-[2.5rem_1fr] ${
+          row.leftText !== null ? 'bg-red-500/20' : ''
+        }`}
+        style={row.leftText === null ? hatchLeft : undefined}
+      >
+        <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
+          {row.leftNum ?? ''}
+        </span>
+        <span
+          className={`px-3 py-0.5 border-r border-inkborder font-body text-xs whitespace-pre-wrap break-words ${
+            row.leftText !== null ? 'text-red-300' : ''
+          }`}
+        >
+          {row.leftText !== null ? row.leftText || ' ' : ''}
+        </span>
+        {showActions && (
+          <span className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1">
+            <FloatingIconButton
+              icon={Copy}
+              isCopied={copiedKey === `hunk-${hunk.id}-removed`}
+              label="Copy removed lines"
+              onClick={() => onCopy(`hunk-${hunk.id}-removed`, hunk.removedText)}
+            />
+          </span>
+        )}
+      </div>
+      <div
+        className={`relative col-span-2 grid grid-cols-[2.5rem_1fr] ${
+          row.rightText !== null ? 'bg-green-500/20' : ''
+        }`}
+        style={row.rightText === null ? hatchRight : undefined}
+      >
+        <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
+          {row.rightNum ?? ''}
+        </span>
+        <span
+          className={`px-3 py-0.5 font-body text-xs whitespace-pre-wrap break-words ${
+            row.rightText !== null ? 'text-green-300' : ''
+          }`}
+        >
+          {row.rightText !== null ? row.rightText || ' ' : ''}
+        </span>
+        {showActions && (
+          <span className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1">
+            <FloatingIconButton
+              icon={Copy}
+              isCopied={copiedKey === `hunk-${hunk.id}-added`}
+              label="Copy added lines"
+              onClick={() => onCopy(`hunk-${hunk.id}-added`, hunk.addedText)}
+            />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const CollapseDividerRow = memo(function CollapseDividerRow({ row, style, onToggleCollapse }) {
+  const [leftFrom, leftTo] = row.leftRange;
+  return (
+    <div style={style} className={ROW_GRID}>
+      <button
+        onClick={() => onToggleCollapse(row.collapseId)}
+        className="col-span-4 flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-semibold text-muted bg-ink/40 hover:bg-ink/70 border-y border-inkborder transition-colors"
+      >
+        {row.expanded ? (
+          <ChevronDown className="w-3.5 h-3.5" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5" />
+        )}
+        {row.expanded
+          ? `Hide ${row.hiddenCount} unchanged line${row.hiddenCount === 1 ? '' : 's'}`
+          : `Show ${row.hiddenCount} unchanged line${row.hiddenCount === 1 ? '' : 's'}${
+              leftFrom != null ? ` (${leftFrom}–${leftTo})` : ''
+            }`}
+      </button>
+    </div>
+  );
+});
+
+function Row({ index, style, rows, copiedKey, hoveredHunkId, ...callbacks }) {
+  const row = rows[index];
+  switch (row.kind) {
+    case 'context':
+      return <ContextRow row={row} style={style} />;
+    case 'hunkRow':
+      return (
+        <HunkRow
+          row={row}
+          style={style}
+          copiedKey={copiedKey}
+          isHunkHovered={row.hunkId === hoveredHunkId}
+          onHunkEnter={callbacks.onHunkEnter}
+          onHunkLeave={callbacks.onHunkLeave}
+          onCopy={callbacks.onCopy}
+        />
+      );
+    case 'collapseDivider':
+      return (
+        <CollapseDividerRow row={row} style={style} onToggleCollapse={callbacks.onToggleCollapse} />
+      );
+    default:
+      return null;
+  }
+}
+
 export default function LineDiffView({
-  diffModel,
+  flatRows,
   hunks,
   stats,
   currentHunk,
   onGoToHunk,
   markers,
-  diffScrollRef,
-  hunkRefs,
+  listRef,
   copiedKey,
   onCopy,
-  onAccept,
-  onRevert,
+  onToggleCollapse,
   originalText,
   changedText,
 }) {
+  const [hoveredHunkId, setHoveredHunkId] = useState(null);
+  const onHunkEnter = useCallback((hunkId) => setHoveredHunkId(hunkId), []);
+  const onHunkLeave = useCallback(
+    (hunkId) => setHoveredHunkId((prev) => (prev === hunkId ? null : prev)),
+    []
+  );
+
   return (
     <div className="bg-inklight border border-inkborder rounded-lg overflow-hidden">
       <div className="px-5 py-3 border-b border-inkborder flex flex-wrap items-center justify-between gap-3">
@@ -128,118 +303,41 @@ export default function LineDiffView({
       </div>
 
       <div className="flex">
-        <div
-          ref={diffScrollRef}
-          className="flex-1 min-w-0 max-h-[55vh] overflow-y-auto overflow-x-auto"
-        >
-          <div className="grid grid-cols-[2.5rem_1fr_2.5rem_1fr] min-w-[480px]">
-            {diffModel.map((block, bi) => {
-              if (block.type === 'context') {
-                return block.rows.map((row, ri) => (
-                  <Fragment key={`ctx-${bi}-${ri}`}>
-                    <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
-                      {row.leftNum}
-                    </span>
-                    <span className="px-3 py-0.5 border-r border-inkborder font-body text-xs text-muted whitespace-pre-wrap break-words">
-                      {row.text || ' '}
-                    </span>
-                    <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
-                      {row.rightNum}
-                    </span>
-                    <span className="px-3 py-0.5 font-body text-xs text-muted whitespace-pre-wrap break-words">
-                      {row.text || ' '}
-                    </span>
-                  </Fragment>
-                ));
-              }
-
-              return (
-                <Fragment key={`hunk-${block.id}`}>
-                  {block.rows.map((row, ri) => (
-                    <Fragment key={`hunk-${block.id}-row-${ri}`}>
-                      <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
-                        {row.leftNum ?? ''}
-                      </span>
-                      <span
-                        className={`px-3 py-0.5 border-r border-inkborder font-body text-xs whitespace-pre-wrap break-words ${
-                          row.leftText !== null ? 'bg-red-500/20 text-red-300' : ''
-                        }`}
-                        style={row.leftText === null ? hatchLeft : undefined}
-                      >
-                        {row.leftText !== null ? row.leftText || ' ' : ''}
-                      </span>
-                      <span className="text-right pr-2 py-0.5 text-[11px] text-muted select-none">
-                        {row.rightNum ?? ''}
-                      </span>
-                      <span
-                        className={`px-3 py-0.5 font-body text-xs whitespace-pre-wrap break-words ${
-                          row.rightText !== null ? 'bg-green-500/20 text-green-300' : ''
-                        }`}
-                        style={row.rightText === null ? hatchRight : undefined}
-                      >
-                        {row.rightText !== null ? row.rightText || ' ' : ''}
-                      </span>
-                    </Fragment>
-                  ))}
-                  <div
-                    ref={(el) => {
-                      hunkRefs.current[block.id] = el;
-                    }}
-                    className="col-span-4 flex flex-wrap items-center justify-center gap-2 py-2 px-2 bg-ink/70 border-y border-inkborder"
-                  >
-                    <Motion.button
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => onCopy(`hunk-${block.id}-removed`, block.removedText)}
-                      className={copyBtnClass(`hunk-${block.id}-removed`, copiedKey)}
-                    >
-                      <CopyLabel copied={copiedKey === `hunk-${block.id}-removed`} label="Removed" />
-                    </Motion.button>
-                    <Motion.button
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => onAccept(block)}
-                      title="Replace the original lines with the changed lines"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
-                    >
-                      Merge change <ArrowRight className="w-3.5 h-3.5" />
-                    </Motion.button>
-                    <Motion.button
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => onRevert(block)}
-                      title="Replace the changed lines with the original lines"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-signal hover:bg-signal/90 text-ink text-xs font-semibold transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" /> Merge change
-                    </Motion.button>
-                    <Motion.button
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => onCopy(`hunk-${block.id}-added`, block.addedText)}
-                      className={copyBtnClass(`hunk-${block.id}-added`, copiedKey)}
-                    >
-                      <CopyLabel copied={copiedKey === `hunk-${block.id}-added`} label="Added" />
-                    </Motion.button>
-                  </div>
-                </Fragment>
-              );
-            })}
+        <div className="flex-1 min-w-0 max-h-[55vh] overflow-x-auto">
+          <div className="min-w-[480px]" style={{ height: '55vh' }}>
+            <List
+              listRef={listRef}
+              defaultHeight={480}
+              rowCount={flatRows.length}
+              rowHeight={rowHeight}
+              rowComponent={Row}
+              rowProps={{
+                rows: flatRows,
+                copiedKey,
+                hoveredHunkId,
+                onHunkEnter,
+                onHunkLeave,
+                onCopy,
+                onToggleCollapse,
+              }}
+              style={{ height: '100%' }}
+            />
           </div>
         </div>
         {hunks.length > 0 && (
           <div className="relative w-3 flex-shrink-0 bg-ink/60 border-l border-inkborder rounded-r-lg">
-            {markers.map((m) => {
-              const idx = hunks.findIndex((h) => h.id === m.id);
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => onGoToHunk(idx)}
-                  title={`Change ${idx + 1} of ${hunks.length}`}
-                  style={{ top: `${m.topPct}%` }}
-                  className="absolute left-0 right-0 h-1.5 flex hover:h-2.5 hover:opacity-100 opacity-80 transition-all cursor-pointer"
-                >
-                  <span className={`flex-1 ${m.hasRemoval ? 'bg-red-500' : ''}`} />
-                  <span className={`flex-1 ${m.hasAddition ? 'bg-green-500' : ''}`} />
-                </button>
-              );
-            })}
+            {markers.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onGoToHunk(m.index)}
+                title={`Change ${m.index + 1} of ${hunks.length}`}
+                style={{ top: `${m.topPct}%` }}
+                className="absolute left-0 right-0 h-1.5 flex hover:h-2.5 hover:opacity-100 opacity-80 transition-all cursor-pointer"
+              >
+                <span className={`flex-1 ${m.hasRemoval ? 'bg-red-500' : ''}`} />
+                <span className={`flex-1 ${m.hasAddition ? 'bg-green-500' : ''}`} />
+              </button>
+            ))}
           </div>
         )}
       </div>
